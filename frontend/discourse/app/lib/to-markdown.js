@@ -1,6 +1,5 @@
 import {
   buildImageMarkdown,
-  escapeMarkdownCharacters,
   extensionFromUrl,
 } from "discourse/lib/markdown-image-builder";
 
@@ -397,7 +396,6 @@ export class Tag {
 
           let linkModifier = "";
           if (attr.class?.includes("attachment")) {
-            text = escapeMarkdownCharacters(text);
             linkModifier = "|attachment";
           }
 
