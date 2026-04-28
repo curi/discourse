@@ -758,6 +758,80 @@ RSpec.describe Middleware::RequestTracker do
         end
       end
     end
+
+    describe "browser page view process_action notification" do
+      def capture_process_action_events
+        events = []
+        sub =
+          ActiveSupport::Notifications.subscribe("process_action.action_controller") do |*args|
+            events << ActiveSupport::Notifications::Event.new(*args)
+          end
+        yield
+        events
+      ensure
+        ActiveSupport::Notifications.unsubscribe(sub) if sub
+      end
+
+      it "fires for /pageview itself without dispatching to any controller" do
+        # `/pageview` is short-circuited inside the middleware so no inner Rails
+        # app is invoked. The notification is what makes the BPV appear in
+        # `production.log`.
+        app_called = false
+        middleware =
+          Middleware::RequestTracker.new(
+            lambda do |env|
+              app_called = true
+              [200, {}, ["OK"]]
+            end,
+          )
+
+        events =
+          capture_process_action_events do
+            status, _, body =
+              middleware.call(
+                env(
+                  :path => "/pageview",
+                  "REQUEST_METHOD" => "POST",
+                  "HTTP_DISCOURSE_TRACK_VIEW_DEFERRED" => "1",
+                ),
+              )
+            expect(status).to eq(204)
+            expect(body).to eq([])
+          end
+
+        expect(app_called).to eq(false)
+        expect(events.length).to eq(1)
+        expect(events.first.payload[:path]).to eq("/pageview")
+      end
+
+      it "does not fire when the request is not a browser page view" do
+        middleware = Middleware::RequestTracker.new(lambda { |env| [200, {}, ["OK"]] })
+
+        events = capture_process_action_events { middleware.call(env) }
+
+        expect(events).to be_empty
+      end
+
+      it "does not fire for anonymous beacon hits from a crawler IP" do
+        SiteSetting.use_beacon_for_browser_page_views = true
+        CrawlerDetection.expects(:crawler_ip?).at_least_once.returns(true)
+        middleware = Middleware::RequestTracker.new(lambda { |env| [200, {}, ["OK"]] })
+
+        events =
+          capture_process_action_events do
+            middleware.call(
+              env(
+                :path => "/srv/pv",
+                "REQUEST_METHOD" => "POST",
+                "CONTENT_TYPE" => "application/json",
+                "rack.input" => StringIO.new(JSON.generate(url: "https://discourse.org/")),
+              ),
+            )
+          end
+
+        expect(events).to be_empty
+      end
+    end
   end
 
   describe "beacon pageview tracking via /srv/pv" do

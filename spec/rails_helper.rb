@@ -1295,8 +1295,20 @@ def create_request_env(path: nil)
   env
 end
 
-def create_auth_cookie(token:, user_id: nil, trust_level: nil, issued_at: Time.current)
-  data = { token: token, user_id: user_id, trust_level: trust_level, issued_at: issued_at.to_i }
+def create_auth_cookie(
+  token:,
+  user_id: nil,
+  username: nil,
+  trust_level: nil,
+  issued_at: Time.current
+)
+  data = {
+    token: token,
+    user_id: user_id,
+    username: username,
+    trust_level: trust_level,
+    issued_at: issued_at.to_i,
+  }
   jar = ActionDispatch::Cookies::CookieJar.build(ActionDispatch::TestRequest.create, {})
   jar.encrypted[:_t] = { value: data }
   CGI.escape(jar[:_t])
