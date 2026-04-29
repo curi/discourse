@@ -156,11 +156,20 @@ export default class EditCategoryTabsController extends Controller {
       data.custom_fields = { ...(this.model.custom_fields ?? {}) };
 
       data.category_type_site_settings = {};
+      data.category_type_settings = {
+        ...(this.model.category_type_settings ?? {}),
+      };
 
       Object.values(this.model.categoryTypes ?? {}).forEach((categoryType) => {
         categoryType.configuration_schema.category_custom_fields?.forEach(
           (field) => {
             data.custom_fields[field.key] ??= field.default;
+          }
+        );
+
+        categoryType.configuration_schema.category_settings?.forEach(
+          (field) => {
+            data.category_type_settings[field.key] ??= field.default;
           }
         );
 

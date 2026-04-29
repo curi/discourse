@@ -27,6 +27,9 @@ en:
             topic_id:
               label: Topic ID
     discourse_calendar:
+      category_type_events:
+        title: "Events"
+        not_events_type: "Heads up! This category is no longer configured as an events category. To turn that back on, find the relevant settings in the Settings tab."
       invite_user_notification: "%{username} invited you to: %{description}"
       preferences:
         all_events: "Discourse Calendar - All Events"

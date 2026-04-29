@@ -190,8 +190,11 @@ class CategoriesController < ApplicationController
           params: {
             category_id: @category.id,
             category_type:,
-            site_setting_configuration_values: params[:category_type_site_settings],
-            category_configuration_values: category_params[:custom_fields],
+            site_setting_configuration_values: hashify_param(params[:category_type_site_settings]),
+            category_configuration_values:
+              hashify_param(category_params[:custom_fields]).merge(
+                hashify_param(params[:category_type_settings]),
+              ),
           },
         ) do |result|
           on_failed_policy(:type_is_available) do
@@ -271,6 +274,20 @@ class CategoriesController < ApplicationController
             settings: category_type_settings,
           },
         )
+      end
+
+      if UpcomingChanges.enabled_for_user?(:enable_simplified_category_creation, current_user) &&
+           params[:category_type_settings].present?
+        # Re-run configure_category for each matching type so per-type
+        # category_settings (e.g. events_calendar_default_view) are persisted on
+        # edit, not just on create.
+        configuration_values = hashify_param(params[:category_type_settings]).deep_symbolize_keys
+        cat.category_types.each_key do |type_id|
+          type_class = Categories::TypeRegistry.get(type_id)
+          next unless type_class
+
+          type_class.configure_category(cat, guardian:, configuration_values:)
+        end
       end
 
       # properly null the value so the database constraint doesn't catch us
@@ -546,6 +563,14 @@ class CategoriesController < ApplicationController
   end
 
   private
+
+  # Convert ActionController::Parameters (or anything responding to :permit!)
+  # into a plain Hash, so downstream services receive a uniformly-shaped
+  # input. Returns +{}+ for nil/blank input.
+  def hashify_param(value)
+    return {} if value.blank?
+    value.respond_to?(:permit!) ? value.permit!.to_h : value.to_h
+  end
 
   def topics_per_page
     return SiteSetting.categories_topics if SiteSetting.categories_topics > 0

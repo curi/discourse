@@ -9,9 +9,6 @@ module Categories
         "properties" => {
           "general_category_settings" => {
             "type" => "object",
-            "additionalProperties" => {
-              "$ref" => "#/$defs/field_config",
-            },
           },
           "site_settings" => {
             "type" => "object",
@@ -33,7 +30,6 @@ module Categories
           "field_config" => {
             "type" => "object",
             "required" => %w[default type label],
-            "additionalProperties" => false,
             "properties" => {
               "default" => true,
               "type" => {
@@ -220,7 +216,7 @@ module Categories
         # This SHOULD NOT be overridden by category types.
         def configure_custom_fields(category, guardian:, configuration_values: {})
           configuration_schema[:category_custom_fields]&.each do |field_name, config|
-            value = configuration_values.fetch(field_name.to_s, config[:default])
+            value = configuration_values.fetch(field_name.to_sym, config[:default])
             category.custom_fields[field_name.to_s] = value.to_s
           end
 
@@ -239,7 +235,7 @@ module Categories
               default_value = config.is_a?(Hash) ? config[:default] : config
               {
                 setting_name: setting_name.to_s,
-                value: configuration_values.fetch(setting_name.to_s, default_value),
+                value: configuration_values.fetch(setting_name.to_sym, default_value),
               }
             end
 
@@ -303,9 +299,13 @@ module Categories
             if target_value.is_a?(Hash)
               default = target_value[:default]
               custom_label = target_value[:label]
+              custom_type = target_value[:type]
+              custom_choices = target_value[:choices]
             else
               default = target_value
               custom_label = nil
+              custom_type = nil
+              custom_choices = nil
             end
 
             meta = SiteSetting.setting_metadata_hash(setting_name)
@@ -314,8 +314,9 @@ module Categories
               key: setting_name.to_s,
               default:,
               current: SiteSetting.public_send(setting_name),
-              type: meta[:type],
+              type: custom_type || meta[:type],
               label: custom_label || meta[:humanized_name],
+              choices: custom_choices || meta[:choices],
               description: meta[:description],
               required: false,
               show_on_create: true,
@@ -334,6 +335,7 @@ module Categories
               type: config[:type].to_s,
               label: config[:label],
               subtype: config[:subtype]&.to_s,
+              choices: config[:choices],
               description: config[:description],
               required: config[:required],
               show_on_create: config[:show_on_create].nil? ? true : config[:show_on_create],
@@ -349,6 +351,7 @@ module Categories
               subtype: config[:subtype]&.to_s,
               label: config[:label],
               description: config[:description],
+              choices: config[:choices],
               required: config[:required],
               show_on_create: config[:show_on_create].nil? ? true : config[:show_on_create],
               show_on_edit: config[:show_on_edit].nil? ? true : config[:show_on_edit],
