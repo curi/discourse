@@ -31,6 +31,24 @@
     pointer-events: none;
   }
 
+  &.is-positioning .select-kit-body {
+    visibility: hidden;
+    position: absolute;
+    top: 0;
+    left: 0;
+  }
+
+  &.is-placed-above.is-expanded {
+    .select-kit-body {
+      flex-direction: column-reverse;
+    }
+
+    .select-kit-collection {
+      display: flex;
+      flex-direction: column-reverse;
+    }
+  }
+
   &.is-expanded {
     z-index: z("dropdown");
 

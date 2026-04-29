@@ -127,6 +127,8 @@ function protoProp(prototype, key, descriptor) {
 @classNameBindings(
   "selectKit.isLoading:is-loading",
   "selectKit.isExpanded:is-expanded",
+  "selectKit.isPositioning:is-positioning",
+  "selectKit.isPlacedAbove:is-placed-above",
   "selectKit.options.disabled:is-disabled",
   "selectKit.isHidden:is-hidden",
   "selectKit.hasSelection:has-selection"
@@ -214,6 +216,9 @@ export default class SelectKit extends Component {
         isLoading: false,
         isHidden: false,
         isExpanded: false,
+        isPositioning: false,
+        isPlacedAbove: false,
+        resolvedPlacement: null,
         isFilterExpanded: false,
         enterDisabled: false,
         hasSelection: false,
@@ -789,8 +794,20 @@ export default class SelectKit extends Component {
         });
 
         this._safeAfterRender(() => {
-          if (this.selectKit.isExpanded) {
-            this._focusFilter();
+          if (!this.selectKit.isExpanded) {
+            return;
+          }
+
+          this._focusFilter();
+
+          if (this.selectKit.isPositioning) {
+            this.updateFloatingUiPosition().finally(() => {
+              if (this.isDestroyed || this.isDestroying) {
+                return;
+              }
+              this.selectKit.set("isPositioning", false);
+              this._startFloatingUiAutoUpdate();
+            });
           }
         });
       })
@@ -959,6 +976,9 @@ export default class SelectKit extends Component {
 
     this.selectKit.setProperties({
       isExpanded: false,
+      isPositioning: false,
+      isPlacedAbove: false,
+      resolvedPlacement: null,
       filter: null,
     });
   }
@@ -973,14 +993,9 @@ export default class SelectKit extends Component {
     this.selectKit.onOpen(event);
 
     if (this.site.desktopView) {
-      this.cleanupFloatingUi?.();
-      this.cleanupFloatingUi = autoUpdate(
-        this.getHeader(),
-        this._bodyElement(),
-        () => this.updateFloatingUiPosition()
-      );
+      this._startFloatingUiAutoUpdate();
     } else {
-      this.updateFloatingUiPosition();
+      this.selectKit.set("isPositioning", true);
     }
 
     this.selectKit.setProperties({
@@ -999,6 +1014,15 @@ export default class SelectKit extends Component {
       this._focusFilter();
       this._scrollToCurrent();
     });
+  }
+
+  _startFloatingUiAutoUpdate() {
+    this.cleanupFloatingUi?.();
+    this.cleanupFloatingUi = autoUpdate(
+      this.getHeader(),
+      this._bodyElement(),
+      () => this.updateFloatingUiPosition()
+    );
   }
 
   updateFloatingUiPosition() {
@@ -1060,7 +1084,9 @@ export default class SelectKit extends Component {
 
           return flip({
             padding: { top, bottom },
-            fallbackStrategy: "initialPlacement",
+            fallbackStrategy: this.site.mobileView
+              ? "bestFit"
+              : "initialPlacement",
           }).fn(state);
         },
       },
@@ -1094,11 +1120,12 @@ export default class SelectKit extends Component {
       hide(),
     ];
 
-    computePosition(referenceElement, floatingElement, {
-      placement: this.selectKit.options.placement,
+    return computePosition(referenceElement, floatingElement, {
+      placement:
+        this.selectKit.resolvedPlacement || this.selectKit.options.placement,
       strategy,
       middleware,
-    }).then(({ x, y, middlewareData }) => {
+    }).then(({ x, y, placement, middlewareData }) => {
       const style = {
         width,
         minWidth,
@@ -1117,6 +1144,10 @@ export default class SelectKit extends Component {
         }
       }
 
+      this.selectKit.setProperties({
+        isPlacedAbove: placement.startsWith("top"),
+        resolvedPlacement: placement,
+      });
       Object.assign(floatingElement.style, style);
     });
   }

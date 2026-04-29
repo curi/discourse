@@ -12,7 +12,13 @@ export default class ChangeTags extends Component {
   <template>
     <p>{{i18n "topics.bulk.choose_new_tags"}}</p>
 
-    <p><TagChooser @tags={{this.tags}} @categoryId={{@categoryId}} /></p>
+    <p>
+      <TagChooser
+        @tags={{this.tags}}
+        @categoryId={{@categoryId}}
+        @options={{hash mobilePlacementStrategy="fixed"}}
+      />
+    </p>
 
     <DButton
       @action={{fn @performAndRefresh (hash type="change_tags" tags=this.tags)}}

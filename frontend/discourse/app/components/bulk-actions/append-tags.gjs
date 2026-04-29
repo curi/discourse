@@ -12,7 +12,13 @@ export default class AppendTags extends Component {
   <template>
     <p>{{i18n "topics.bulk.choose_append_tags"}}</p>
 
-    <p><TagChooser @tags={{this.tags}} @categoryId={{@categoryId}} /></p>
+    <p>
+      <TagChooser
+        @tags={{this.tags}}
+        @categoryId={{@categoryId}}
+        @options={{hash mobilePlacementStrategy="fixed"}}
+      />
+    </p>
 
     <DButton
       @action={{fn @performAndRefresh (hash type="append_tags" tags=this.tags)}}
